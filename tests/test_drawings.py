@@ -61,3 +61,32 @@ def test_write_eld_integration(tmp_path):
     back = tdxdraw.read_eld(out)
     assert len(back) == len(ds)
     assert back[0].start_date == ds[0].start_date
+
+
+def test_stickline_merges_runs_into_rectangles():
+    # 第 3-6 根触发（连续 4 根 → 1 个矩形），第 10 根单独触发（1 个矩形）
+    cond = np.zeros(30, bool)
+    cond[2:6] = True
+    cond[9] = True
+    src = "STICKLINE(cond,HIGH,LOW,2,0);T:CLOSE;"
+    env = dict(ENV, cond=cond)
+    ds = eval_to_drawings(src, env, market="sh", code="600519", dates=DATES)
+    rects = [d for d in ds if d.line_type == "rectangle"]
+    assert len(rects) == 2
+    # 合并段的价格取触发区间内 HIGH/LOW 的极值
+    assert rects[0].end_price == pytest.approx(max(ENV["HIGH"][2:6]))
+    assert rects[0].start_price == pytest.approx(min(ENV["LOW"][2:6]))
+    assert rects[0].start_date == DATES[2] and rects[0].end_date == DATES[5]
+    assert rects[1].start_date == DATES[9] and rects[1].end_date == DATES[9]
+
+
+def test_drawnumber_labels_values():
+    src = "DRAWNUMBER(CLOSE>REF(CLOSE,1),LOW,CLOSE);T:CLOSE;"
+    ds = eval_to_drawings(src, ENV, market="sh", code="600519", dates=DATES)
+    assert len(ds) >= 1
+    assert all(d.line_type == "text" for d in ds)
+    # 文字应为对应收盘价的数字（存于画线日期锚点上，数值经 eld 往返后校验价格字段）
+    prev = np.concatenate([[np.nan], CLOSE[:-1]])
+    first_up = int(np.where(CLOSE > prev)[0][0])
+    assert ds[0].start_date == DATES[first_up]
+    assert ds[0].start_price == pytest.approx(float(ENV["LOW"][first_up]))

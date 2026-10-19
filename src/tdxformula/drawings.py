@@ -20,9 +20,10 @@ import numpy as np
 from .formula import eval_formula
 
 # 支持的绘图指令
-DRAW_NAMES = {"DRAWLINE", "DRAWTEXT", "POLYLINE", "DRAWICON", "DRAWNUMBER"}
+DRAW_NAMES = {"DRAWLINE", "DRAWTEXT", "POLYLINE", "DRAWICON", "DRAWNUMBER",
+              "STICKLINE"}
 
-_SKIP_NOTIFY = {"DRAWICON", "DRAWNUMBER", "STICKLINE"}
+_SKIP_NOTIFY = {"DRAWICON"}
 
 
 def _pairs(cond1, price1, cond2, price2):
@@ -57,14 +58,38 @@ def _draw_hook(collector, dates):
             for i, j in _pairs(c1, p1, c2, p2):
                 collector.append({"kind": "segment", "i1": i, "p1": float(p1[i]),
                                   "i2": j, "p2": float(p2[j])})
-        elif name in ("DRAWTEXT", "DRAWICON", "DRAWNUMBER"):
-            if name == "DRAWICON":
-                return                      # 图标依赖客户端资源，跳过
+        elif name == "STICKLINE" and len(args) >= 3:
+            """COND,PRICE1,PRICE2,WIDTH,EMPTY → 连续触发段合并为一个矩形。"""
+            c = np.asarray(args[0], bool)
+            p1, p2 = arr(args[1]), arr(args[2])
+            i = 0
+            while i < len(c):
+                if not c[i] or (np.isnan(p1[i]) and np.isnan(p2[i])):
+                    i += 1
+                    continue
+                j = i
+                while j + 1 < len(c) and c[j + 1]:
+                    j += 1
+                seg = np.concatenate([p1[i:j + 1], p2[i:j + 1]])
+                collector.append({"kind": "rectangle", "i1": i, "i2": j,
+                                  "p1": float(np.nanmin(seg)), "p2": float(np.nanmax(seg))})
+                i = j + 1
+        elif name in ("DRAWTEXT", "DRAWNUMBER"):
             c, p = arr(args[0]), arr(args[1])
-            label = text(args[2]) if len(args) > 2 and isinstance(args[2], str) else \
-                (name.replace("DRAW", "") + str(int(args[2])) if len(args) > 2 else name)
-            for i in np.where(c)[0]:
-                if not np.isnan(p[i]):
+            if name == "DRAWTEXT":
+                label = text(args[2]) if len(args) > 2 and isinstance(args[2], str) else "TEXT"
+                for i in np.where(c)[0]:
+                    if not np.isnan(p[i]):
+                        collector.append({"kind": "text", "i": int(i),
+                                          "p": float(p[i]), "text": str(label)})
+            else:
+                # DRAWNUMBER(COND,PRICE,NUMBER)：每个触发点标注对应数值
+                num = arr(args[2]) if not isinstance(args[2], str) else None
+                for i in np.where(c)[0]:
+                    if np.isnan(p[i]):
+                        continue
+                    label = args[2] if isinstance(args[2], str) else \
+                        f"{num[i]:.2f}".rstrip("0").rstrip(".")
                     collector.append({"kind": "text", "i": int(i),
                                       "p": float(p[i]), "text": str(label)})
         elif name == "POLYLINE":
@@ -107,6 +132,10 @@ def eval_to_drawings(src: str, env: dict, *, market: str, code: str,
             continue
         if c["kind"] == "segment":
             d = Drawing(market, code, "segment",
+                        round(c["p1"], 4), round(c["p2"], 4),
+                        dates[c["i1"]], dates[c["i2"]], line_id=lid, **drawing_kw)
+        elif c["kind"] == "rectangle":
+            d = Drawing(market, code, "rectangle",
                         round(c["p1"], 4), round(c["p2"], 4),
                         dates[c["i1"]], dates[c["i2"]], line_id=lid, **drawing_kw)
         else:  # text
