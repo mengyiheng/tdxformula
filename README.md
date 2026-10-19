@@ -83,3 +83,15 @@ print(gen_python(macd))
 ## License
 
 MIT
+
+## 量化相关定制需求
+
+作者承接公式迁移与转译器扩展的定制开发：
+
+| 方向 | 示例 |
+|---|---|
+| 📦 公式批量迁移 | 你的私藏公式库整批转译 + 与通达信逐根比对验收 |
+| 🧮 函数扩充 | 按需实现未覆盖的序列函数（对齐通达信语义） |
+| 🔗 深度集成 | 选股公式转盘中扫描（接 tdxalert）、绘图指令转 tdxdraw |
+
+**联系合作**：[Gitee Issues](https://gitee.com/mengyiheng/tdxformula/issues) 或 [Gitee 私信](https://gitee.com/mengyiheng)。迁移类需求请附：公式数量、是否含绘图指令。
