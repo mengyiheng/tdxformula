@@ -21,6 +21,6 @@ except ImportError:                      # tdxdraw 未安装时仍可独立使�
     eval_to_drawings = None
     __all_draw = []
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = ["eval_formula", "gen_python", "tokenize", "FUNCS",
            *__all_draw, "__version__"]

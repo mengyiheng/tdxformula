@@ -61,6 +61,9 @@ print(gen_python(macd))
 | 引用 | `REF` `HHV` `LLV`（支持 N=0 累计）`BARSLAST` `BARSCOUNT` `BARSSINCE` |
 | 统计 | `COUNT` `EVERY` `EXIST` `SUM`（支持 N=0）`STD` `VAR` |
 | 信号 | `CROSS` `LONGCROSS` `UPNDAY` `DOWNNDAY` `NDAY` `FILTER` `BACKSET` |
+| 回归统计 | `SLOPE` `FORCAST` `AVEDEV` `DEVSQ` `STD` `VAR` |
+| 位置 | `BARSCOUNT` `BARSSINCE` `HHVBARS` `LLVBARS` `CONST` `ISLASTBAR` `CURRBARSCOUNT` `TOTALBARSCOUNT` `REFX`(未来引用) |
+| 日期 | `YEAR` `MONTH` `DAY` `WEEKDAY` `DATE` `TIME`（env 提供可选 `__dates__`） |
 | 逻辑 | `IF` `AND/OR/&&/\|\|`、比较运算 |
 | 算术 | `+ - * /` `ABS` `MAX` `MIN` `POW` `SQRT` `EXP` `LN` `LOG` `MOD` |
 

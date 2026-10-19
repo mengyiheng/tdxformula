@@ -397,24 +397,173 @@ def BARSLAST(cond):
     return out
 
 
+# ==================== 常用函数扩充（v0.5.0） ====================
+
+def AVEDEV(x, n):
+    """AVEDEV(X,N)：平均绝对偏差（CCI 的分母）。前端增长窗口。"""
+    x = _s(x)
+    n = int(n)
+    out = np.full_like(x, np.nan)
+    for i in range(len(x)):
+        lo = 0 if n == 0 else max(0, i - n + 1)
+        w = x[lo:i + 1]
+        out[i] = np.mean(np.abs(w - w.mean()))
+    return out
+
+
+def DEVSQ(x, n):
+    """DEVSQ(X,N)：数据偏差平方和。"""
+    x = _s(x)
+    n = int(n)
+    out = np.full_like(x, np.nan)
+    for i in range(len(x)):
+        lo = 0 if n == 0 else max(0, i - n + 1)
+        w = x[lo:i + 1]
+        out[i] = np.sum((w - w.mean()) ** 2)
+    return out
+
+
+def SLOPE(x, n):
+    """SLOPE(X,N)：线性回归斜率。"""
+    x, n = _s(x), int(n)
+    out = np.full_like(x, np.nan)
+    for i in range(n - 1, len(x)):
+        w = x[i - n + 1:i + 1]
+        out[i] = np.polyfit(np.arange(n), w, 1)[0]
+    return out
+
+
+def FORCAST(x, n):
+    """FORCAST(X,N)：线性回归预测值（回归线在当前 bar 的取值）。"""
+    x, n = _s(x), int(n)
+    out = np.full_like(x, np.nan)
+    for i in range(n - 1, len(x)):
+        w = x[i - n + 1:i + 1]
+        out[i] = np.polyfit(np.arange(n), w, 1)[1] + np.polyfit(np.arange(n), w, 1)[0] * (n - 1)
+    return out
+
+
+def HHVBARS(x, n):
+    """距最近 N 周期最高值的周期数（0 = 当前就是最高）。"""
+    x, n = _s(x), int(n)
+    out = np.zeros(len(x), float)
+    for i in range(len(x)):
+        lo = 0 if n == 0 else max(0, i - n + 1)
+        out[i] = i - (lo + int(np.argmax(x[lo:i + 1])))
+    return out
+
+
+def LLVBARS(x, n):
+    x, n = _s(x), int(n)
+    out = np.zeros(len(x), float)
+    for i in range(len(x)):
+        lo = 0 if n == 0 else max(0, i - n + 1)
+        out[i] = i - (lo + int(np.argmin(x[lo:i + 1])))
+    return out
+
+
+def CONST(x):
+    return np.full(max(1, len(np.atleast_1d(x))), float(np.asarray(x).ravel()[0]))
+
+
+def ISLASTBAR(x=None):
+    n = _env_len()
+    out = np.zeros(max(n, 1), bool)
+    if n:
+        out[-1] = True
+    return out
+
+
+def TOTALBARSCOUNT(x=None):
+    return float(_env_len())
+
+
+def CURRBARSCOUNT(x=None):
+    """到最后一根的倒序序号（含当前=1）。"""
+    n = _env_len()
+    return np.arange(n, 0, -1, dtype=float)
+
+
+def REFX(x, n):
+    """向前引用（引用未来第 n 根，含未来数据，仅作图用）。"""
+    x, n = _s(x), int(n)
+    out = np.full_like(x, np.nan)
+    if n >= 0:
+        out[:-n or None] = x[n:]
+    return out
+
+
+def _env_len():
+    return int(_CURRENT_ENV.get("__len__") or 0)
+
+
+def _date_part(freq):
+    dates = _CURRENT_ENV.get("__dates__")
+    if not dates:
+        raise ValueError("日期函数需要 env 提供 __dates__（date/datetime 列表）")
+    out = []
+    for d in dates:
+        if freq == "year":
+            out.append(d.year)
+        elif freq == "month":
+            out.append(d.month)
+        elif freq == "day":
+            out.append(d.day)
+        elif freq == "weekday":
+            out.append(d.isoweekday())
+        elif freq == "date":
+            out.append(d.year * 10000 + d.month * 100 + d.day)
+        elif freq == "time":
+            out.append(d.hour * 60 + d.minute)
+    return np.asarray(out, float)
+
+
 FUNCS = {
     # 均线族
     "MA": MA, "EMA": EMA, "SMA": SMA, "DMA": DMA, "WMA": WMA,
     # 引用族
-    "REF": REF, "HHV": HHV, "LLV": LLV, "BARSLAST": BARSLAST,
+    "REF": REF, "REFX": REFX, "HHV": HHV, "LLV": LLV, "BARSLAST": BARSLAST,
     "BARSCOUNT": BARSCOUNT, "BARSSINCE": BARSSINCE,
+    "HHVBARS": HHVBARS, "LLVBARS": LLVBARS,
     # 逻辑/统计族
     "CROSS": CROSS, "COUNT": COUNT, "EVERY": EVERY, "EXIST": EXIST,
     "LONGCROSS": LONGCROSS, "UPNDAY": UPNDAY, "DOWNNDAY": DOWNNDAY,
     "NDAY": NDAY, "FILTER": FILTER, "BACKSET": BACKSET,
+    # 回归/统计
+    "SLOPE": SLOPE, "FORCAST": FORCAST, "AVEDEV": AVEDEV, "DEVSQ": DEVSQ,
+    "STD": STD, "VAR": VAR,
+    # 位置/常量
+    "CONST": CONST, "ISLASTBAR": ISLASTBAR,
+    "TOTALBARSCOUNT": TOTALBARSCOUNT, "CURRBARSCOUNT": CURRBARSCOUNT,
+    # 日期（需 env 提供 __dates__）
+    "YEAR": lambda x=None: _date_part("year"),
+    "MONTH": lambda x=None: _date_part("month"),
+    "DAY": lambda x=None: _date_part("day"),
+    "WEEKDAY": lambda x=None: _date_part("weekday"),
+    "DATE": lambda x=None: _date_part("date"),
+    "TIME": lambda x=None: _date_part("time"),
     # 数学族
     "SUM": SUM, "ABS": lambda x: np.abs(_s(x)),
     "MAX": lambda a, b: np.maximum(_s(a), _s(b)),
     "MIN": lambda a, b: np.minimum(_s(a), _s(b)),
     "IF": IF, "POW": POW, "SQRT": SQRT, "EXP": EXP,
     "LN": LN, "LOG": LOG, "MOD": MOD,
-    "STD": STD, "VAR": VAR,
+    "SIGN": lambda x: np.sign(_s(x)),
 }
+
+# 供 _eval / drawings 使用：当前求值环境（日期函数依赖）
+_CURRENT_ENV: dict = {}
+
+
+def _arity(fn) -> int:
+    import inspect
+    try:
+        sig = inspect.signature(fn)
+        required = [p for p in sig.parameters.values()
+                    if p.default is p.empty and p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+        return len(required)
+    except (TypeError, ValueError):
+        return 1
 
 
 # ==================== 求值 ====================
@@ -425,6 +574,9 @@ def _eval(node, env):
         return float(node[1])
     if op == "var":
         if node[1] not in env:
+            fn = FUNCS.get(node[1])
+            if fn is not None and _arity(fn) == 0:   # 裸用的零参函数（如 MONTH）
+                return fn()
             raise NameError(f"未定义变量: {node[1]}")
         return env[node[1]]
     if op == "neg":
@@ -463,9 +615,12 @@ def eval_formula(src: str, env: dict) -> dict:
     """解析并求值通达信指标公式，返回 {线名: numpy 数组}。
 
     env 需提供 OPEN/HIGH/LOW/CLOSE/VOL 等序列；__len__ 自动推断。
+    可选 __dates__（date/datetime 列表），YEAR/MONTH/DAY 等日期函数依赖。
     """
     env = dict(env)
     env.setdefault("__len__", len(next(iter(env.values()))))
+    global _CURRENT_ENV
+    _CURRENT_ENV = env                      # 日期函数等依赖当前环境
     outputs, results = [], {}
     for kind, name, expr in Parser(tokenize(src)).parse_program():
         results[name] = _eval(expr, env)
