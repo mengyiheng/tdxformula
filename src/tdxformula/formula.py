@@ -244,11 +244,11 @@ def _s(x):
 def SUM(x, n):
     x = _s(x)
     n = int(n)
-    c = np.cumsum(np.insert(x, 0, 0.0))
+    c = np.cumsum(np.insert(np.nan_to_num(x), 0, 0.0))   # NaN 不毒化累计
     if n == 0:                                  # 0 = 累计至今
         return c[1:]
     out = (c[n:] - c[:-n]) / 1.0
-    head = np.cumsum(x[:n - 1])                 # 前端增长窗口
+    head = np.cumsum(np.nan_to_num(x[:n - 1]))  # 前端增长窗口（忽略 NaN）
     return np.concatenate([head, out])
 
 

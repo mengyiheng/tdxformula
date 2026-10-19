@@ -113,3 +113,15 @@ def test_bare_zero_arg_call():
     """通达信里日期函数不带括号裸用。"""
     r = eval_formula("M:MONTH;", _env())
     assert np.allclose(r["M"], [d.month for d in DATES])
+
+def test_sum_nan_head_regression():
+    """v0.5.1 回归：SUM 头部 NaN 曾毒化整条序列（DMI 公式触发）。"""
+    from tdxformula import eval_formula
+    x = np.arange(20, dtype=float)
+    x[0] = np.nan
+    env = {"CLOSE": x, "HIGH": x + 1, "LOW": x - 1, "VOL": np.ones(20), "__len__": 20}
+    r = eval_formula("S:SUM(CLOSE,14);", env)
+    assert (~np.isnan(r["S"])).sum() == 7          # 仅前 13 根无值
+    assert r["S"][-1] == pytest.approx(x[1:].sum())
+    r2 = eval_formula("S0:SUM(CLOSE,0);", env)
+    assert r2["S0"][-1] == pytest.approx(x[1:].sum())
