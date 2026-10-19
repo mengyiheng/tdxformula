@@ -14,5 +14,5 @@
 
 from .formula import (FUNCS, eval_formula, gen_python, tokenize)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = ["eval_formula", "gen_python", "tokenize", "FUNCS", "__version__"]

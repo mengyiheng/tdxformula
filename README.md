@@ -57,11 +57,12 @@ print(gen_python(macd))
 
 | 类别 | 函数 |
 |---|---|
-| 均线 | `MA` `EMA` `SMA`（通达信加权版） |
-| 引用 | `REF` `HHV` `LLV` `BARSLAST` |
-| 统计 | `COUNT` `EVERY` `EXIST` `SUM` |
-| 逻辑 | `CROSS` `AND/OR/&&/\|\|`、比较运算 |
-| 算术 | `+ - * /` `ABS` `MAX` `MIN` |
+| 均线 | `MA` `EMA` `SMA`（通达信加权版）`DMA` `WMA` |
+| 引用 | `REF` `HHV` `LLV`（支持 N=0 累计）`BARSLAST` `BARSCOUNT` `BARSSINCE` |
+| 统计 | `COUNT` `EVERY` `EXIST` `SUM`（支持 N=0）`STD` `VAR` |
+| 信号 | `CROSS` `LONGCROSS` `UPNDAY` `DOWNNDAY` `NDAY` `FILTER` `BACKSET` |
+| 逻辑 | `IF` `AND/OR/&&/\|\|`、比较运算 |
+| 算术 | `+ - * /` `ABS` `MAX` `MIN` `POW` `SQRT` `EXP` `LN` `LOG` `MOD` |
 
 已在路线图：`DRAW*` 系列转 [tdxdraw](https://gitee.com/mengyiheng/tdxdraw) 画线、
 公式参数、跨公式引用（`"MACD.DEA"#DAY`）、更多函数。

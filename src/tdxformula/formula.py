@@ -150,9 +150,16 @@ class Parser:
 
 def MA(x, n):
     n = int(n)
-    c = np.cumsum(np.insert(np.asarray(x, float), 0, 0.0))
-    out = (c[n:] - c[:-n]) / n
-    return np.concatenate([np.full(n - 1, np.nan), out])
+    x = _s(x)
+    valid = (~np.isnan(x)).astype(float)
+    cs = np.cumsum(np.insert(np.nan_to_num(x), 0, 0.0))
+    cv = np.cumsum(np.insert(valid, 0, 0.0))
+    out = np.full_like(x, np.nan)
+    for i in range(n - 1, len(x)):
+        c = cv[i + 1] - cv[i + 1 - n]
+        if c == n:                              # 窗口内需满 N 个有效值
+            out[i] = (cs[i + 1] - cs[i + 1 - n]) / n
+    return out
 
 
 def EMA(x, n):
@@ -191,7 +198,7 @@ def HHV(x, n):
     n = int(n)
     out = np.full_like(np.asarray(x, float), np.nan)
     for i in range(len(x)):
-        lo = max(0, i - n + 1)
+        lo = 0 if n == 0 else max(0, i - n + 1)     # n=0 累计至今
         out[i] = np.max(x[lo:i + 1])
     return out
 
@@ -200,7 +207,7 @@ def LLV(x, n):
     n = int(n)
     out = np.full_like(np.asarray(x, float), np.nan)
     for i in range(len(x)):
-        lo = max(0, i - n + 1)
+        lo = 0 if n == 0 else max(0, i - n + 1)
         out[i] = np.min(x[lo:i + 1])
     return out
 
@@ -215,6 +222,149 @@ def COUNT(cond, n):
     for i in range(n - 1, len(cond)):
         out[i] = np.sum(cond[i - n + 1:i + 1])
     return out
+
+
+# ==================== 常用函数扩充（v0.2.0） ====================
+
+def _s(x):
+    """标量/列表统一转 float 数组。"""
+    return np.asarray(x, float)
+
+
+def SUM(x, n):
+    x = _s(x)
+    n = int(n)
+    c = np.cumsum(np.insert(x, 0, 0.0))
+    if n == 0:                                  # 0 = 累计至今
+        return c[1:]
+    out = (c[n:] - c[:-n]) / 1.0
+    head = np.cumsum(x[:n - 1])                 # 前端增长窗口
+    return np.concatenate([head, out])
+
+
+def STD(x, n):
+    x = _s(x)
+    n = int(n)
+    out = np.full_like(x, np.nan)
+    for i in range(1, len(x)):
+        lo = max(0, i - n + 1)
+        w = x[lo:i + 1]
+        if len(w) >= 2:
+            out[i] = np.std(w, ddof=1)
+    return out
+
+
+def VAR(x, n):
+    return STD(x, n) ** 2
+
+
+def DMA(x, a):
+    """DMA(X,A)：A 可为 0-1 标量或序列。"""
+    x, a = _s(x), _s(a)
+    if a.ndim == 0:
+        a = np.full(len(x), float(a))
+    out = np.empty_like(x)
+    prev = x[0]
+    for i in range(len(x)):
+        prev = a[i] * x[i] + (1 - a[i]) * prev
+        out[i] = prev
+    return out
+
+
+def WMA(x, n):
+    x, n = _s(x), int(n)
+    w = np.arange(1, n + 1, dtype=float)
+    out = np.full_like(x, np.nan)
+    for i in range(n - 1, len(x)):
+        out[i] = np.dot(x[i - n + 1:i + 1], w) / w.sum()
+    return out
+
+
+def BACKSET(cond, n):
+    n = int(n)
+    out = np.array(cond, bool).copy()
+    idx = np.where(out)[0]
+    for i in idx:
+        out[max(0, i - n + 1):i + 1] = True
+    return out
+
+
+def FILTER(cond, n):
+    n = int(n)
+    out = np.array(cond, bool).copy()
+    cool = -1
+    for i, c in enumerate(out):
+        if cool >= i:
+            out[i] = False
+        elif c:
+            cool = i + n
+    return out
+
+
+def BARSCOUNT(x):
+    x = _s(x)
+    valid = np.where(~np.isnan(x))[0]
+    start = int(valid[0]) if len(valid) else 0
+    return (np.arange(len(x), dtype=float) - start + 1.0)
+
+
+def BARSSINCE(cond):
+    cond = np.asarray(cond, bool)
+    out = np.full(len(cond), np.nan)
+    first = np.where(cond)[0]
+    if len(first):
+        out[:] = np.arange(len(cond)) - first[0]
+    return out
+
+
+def UPNDAY(x, n):
+    x = _s(x)
+    return EVERY(np.concatenate([[False], x[1:] > x[:-1]]), n)
+
+
+def DOWNNDAY(x, n):
+    x = _s(x)
+    return EVERY(np.concatenate([[False], x[1:] < x[:-1]]), n)
+
+
+def NDAY(a, b, n):
+    return EVERY(_s(a) > _s(b), n)
+
+
+def LONGCROSS(a, b, n):
+    """LONGCROSS(A,B,N)：A<B 持续 N 根后上穿 B。"""
+    a, b = _s(a), _s(b)
+    below = EVERY(a < b, n)
+    up = (a > b) & (np.roll(a, 1) <= np.roll(b, 1))
+    return below & up
+
+
+def IF(cond, a, b):
+    return np.where(np.asarray(cond, bool), _s(a), _s(b))
+
+
+def POW(x, n):
+    return np.power(_s(x), float(n))
+
+
+def SQRT(x):
+    return np.sqrt(_s(x))
+
+
+def EXP(x):
+    return np.exp(_s(x))
+
+
+def LN(x):
+    return np.log(_s(x))
+
+
+def LOG(x):
+    return np.log10(_s(x))
+
+
+def MOD(a, b):
+    return _s(a) % _s(b)
 
 
 def EVERY(cond, n):
@@ -238,12 +388,22 @@ def BARSLAST(cond):
 
 
 FUNCS = {
-    "MA": MA, "EMA": EMA, "SMA": SMA, "REF": REF, "HHV": HHV, "LLV": LLV,
+    # 均线族
+    "MA": MA, "EMA": EMA, "SMA": SMA, "DMA": DMA, "WMA": WMA,
+    # 引用族
+    "REF": REF, "HHV": HHV, "LLV": LLV, "BARSLAST": BARSLAST,
+    "BARSCOUNT": BARSCOUNT, "BARSSINCE": BARSSINCE,
+    # 逻辑/统计族
     "CROSS": CROSS, "COUNT": COUNT, "EVERY": EVERY, "EXIST": EXIST,
-    "BARSLAST": BARSLAST, "SUM": lambda x, n: COUNT(x, n) * np.nan,  # 占位
-    "ABS": lambda x: np.abs(x),
-    "MAX": lambda a, b: np.maximum(a, b),
-    "MIN": lambda a, b: np.minimum(a, b),
+    "LONGCROSS": LONGCROSS, "UPNDAY": UPNDAY, "DOWNNDAY": DOWNNDAY,
+    "NDAY": NDAY, "FILTER": FILTER, "BACKSET": BACKSET,
+    # 数学族
+    "SUM": SUM, "ABS": lambda x: np.abs(_s(x)),
+    "MAX": lambda a, b: np.maximum(_s(a), _s(b)),
+    "MIN": lambda a, b: np.minimum(_s(a), _s(b)),
+    "IF": IF, "POW": POW, "SQRT": SQRT, "EXP": EXP,
+    "LN": LN, "LOG": LOG, "MOD": MOD,
+    "STD": STD, "VAR": VAR,
 }
 
 
