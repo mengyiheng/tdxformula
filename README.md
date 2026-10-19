@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/cover.png" alt="tdxformula" width="720"/></p>
+
 # tdxformula — 通达信公式 Python 转译器
 
 把**通达信技术指标公式**（DSL）解析并转译为 numpy 序列运算，语义经通达信
