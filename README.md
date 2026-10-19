@@ -76,6 +76,29 @@ print(gen_python(macd))
 | `MA` 前 N-1 根 | 无值 | ✅ NaN |
 | `EMA` 递推 | `(2X+(N-1)EMA')/(N+1)` | ✅ 与 pandas ewm(span) 误差 0 |
 
+
+## 公式 → 画线打通（v0.3.0）
+
+公式里的绘图指令可直接转成 [tdxdraw](https://gitee.com/mengyiheng/tdxdraw) 画线对象，
+`write_eld` 生成 .eld 后在通达信里导入——**分析程序的输出变成真正的画线**：
+
+```bash
+pip install tdxformula[draw]
+```
+
+```python
+from tdxformula import eval_to_drawings
+from tdxdraw import write_eld
+
+drawings = eval_to_drawings(
+    "DRAWLINE(LOW=LLV(LOW,20),LOW,HIGH=HHV(HIGH,20),HIGH,0);",
+    {"CLOSE": close, "HIGH": high, "LOW": low},
+    market="sh", code="600519", dates=dates)
+write_eld("out.eld", drawings)      # 通达信画线导入即可见
+```
+
+支持：`DRAWLINE`（配对连线）、`DRAWTEXT`（文字标注）、`POLYLINE`（折线链）；
+`DRAWICON/STICKLINE` 暂跳过。
 ## 免责声明
 
 本项目仅为公式文本的格式转换工具，不提供任何行情数据，不构成任何投资建议。
