@@ -14,5 +14,13 @@
 
 from .formula import (FUNCS, eval_formula, gen_python, tokenize)
 
-__version__ = "0.2.0"
-__all__ = ["eval_formula", "gen_python", "tokenize", "FUNCS", "__version__"]
+try:
+    from .drawings import eval_to_drawings
+    __all_draw = ["eval_to_drawings"]
+except ImportError:                      # tdxdraw 未安装时仍可独立使用
+    eval_to_drawings = None
+    __all_draw = []
+
+__version__ = "0.3.0"
+__all__ = ["eval_formula", "gen_python", "tokenize", "FUNCS",
+           *__all_draw, "__version__"]

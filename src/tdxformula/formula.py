@@ -26,6 +26,7 @@ import numpy as np
 TOKEN_RE = re.compile(r"""
     (?P<ws>\s+)
   | (?P<comment>\{[^}]*\})
+  | (?P<str>'[^']*')
   | (?P<num>\d+\.?\d*)
   | (?P<id>[A-Za-z_\u4e00-\u9fff][A-Za-z0-9_\u4e00-\u9fff]*)
   | (?P<op>:=|<=|>=|<>|!=|&&|\|\||[-+*/<>=(),;:])
@@ -67,6 +68,12 @@ class Parser:
     def parse_program(self):
         stmts = []
         while self.peek()[0] != "eof":
+            # 裸调用语句（如 DRAWLINE(...)： 没有赋值名）
+            if self.peek()[0] == "id" and self.toks[self.i + 1][1] == "(":
+                expr = self.parse_expr()
+                self.eat(";")
+                stmts.append(("hidden", f"__call{len(stmts)}__", expr))
+                continue
             name = self.eat()
             kind = "output" if self.eat() in (":",) else "hidden"   # ':' or ':='
             expr = self.parse_expr()
@@ -127,6 +134,9 @@ class Parser:
             e = self.parse_expr()
             self.eat(")")
             return e
+        if kind == "str":
+            self.eat()
+            return ("str", v.strip("'"))
         if kind == "num":
             self.eat()
             return ("const", float(v))
@@ -433,7 +443,14 @@ def _eval(node, env):
         return np.logical_and(_eval(node[1], env), _eval(node[2], env))
     if op == "or":
         return np.logical_or(_eval(node[1], env), _eval(node[2], env))
+    if op == "str":
+        return node[1]
     if op == "call":
+        # 绘图指令钩子：调用方通过 __draw_hook__ 收集坐标（见 drawings.py）
+        if node[1] in env.get("__draw_names__", ()) and "__draw_hook__" in env:
+            args = [_eval(a, env) for a in node[2]]
+            env["__draw_hook__"](node[1], args)
+            return np.zeros(env.get("__len__") or 1)
         fn = FUNCS.get(node[1])
         if fn is None:
             raise ValueError(f"函数未实现: {node[1]}")
