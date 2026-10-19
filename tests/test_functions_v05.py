@@ -122,6 +122,6 @@ def test_sum_nan_head_regression():
     env = {"CLOSE": x, "HIGH": x + 1, "LOW": x - 1, "VOL": np.ones(20), "__len__": 20}
     r = eval_formula("S:SUM(CLOSE,14);", env)
     assert (~np.isnan(r["S"])).sum() == 7          # 仅前 13 根无值
-    assert r["S"][-1] == pytest.approx(x[1:].sum())
+    assert r["S"][-1] == pytest.approx(x[6:].sum())   # 末根窗口 = x[6..19]，x[0] 记 0
     r2 = eval_formula("S0:SUM(CLOSE,0);", env)
     assert r2["S0"][-1] == pytest.approx(x[1:].sum())
