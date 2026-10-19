@@ -5,9 +5,6 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tdxformula"
 version = "0.3.0"
-
-[project.optional-dependencies]
-draw = ["tdxdraw>=0.1.0"]
 description = "通达信指标公式 Python 转译器：逐根对齐通达信真实计算结果"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -23,6 +20,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Office/Business :: Financial :: Investment",
 ]
+
+[project.optional-dependencies]
+draw = ["tdxdraw>=0.1.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
